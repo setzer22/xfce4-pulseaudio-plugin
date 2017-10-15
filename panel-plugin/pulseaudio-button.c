@@ -61,7 +61,10 @@ static const char *icons[] = {
   NULL
 };
 
-
+static const char* icon_filenames[] = {"/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-mute.png",
+                                      "/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-low.png",
+                                      "/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-medium.png",
+                                      "/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-high.png"};
 
 static void                 pulseaudio_button_finalize        (GObject            *object);
 static gboolean             pulseaudio_button_button_press    (GtkWidget          *widget,
@@ -120,8 +123,6 @@ pulseaudio_button_class_init (PulseaudioButtonClass *klass)
   gtkwidget_class->scroll_event         = pulseaudio_button_scroll_event;
 }
 
-
-
 static void
 pulseaudio_button_init (PulseaudioButton *button)
 {
@@ -136,6 +137,11 @@ pulseaudio_button_init (PulseaudioButton *button)
 
   /* Preload icons */
   g_signal_connect (G_OBJECT (button), "style-updated", G_CALLBACK (pulseaudio_button_update_icons), button);
+
+  //#define V_MUTED  0
+  //#define V_LOW    1
+  //#define V_MEDIUM 2
+  //#define V_HIGH   3
 
   /* Setup Gtk style */
   css_provider = gtk_css_provider_new ();
@@ -292,18 +298,24 @@ pulseaudio_button_update (PulseaudioButton *button,
   volume = pulseaudio_volume_get_volume (button->volume);
   muted = pulseaudio_volume_get_muted (button->volume);
   connected = pulseaudio_volume_get_connected (button->volume);
-  if (!connected)
+  if (!connected) {
     icon_name = icons[V_MUTED];
-  else if (muted)
+  }
+  else if (muted) {
     icon_name = icons[V_MUTED];
-  else if (volume <= 0.0)
+  }
+  else if (volume <= 0.0) {
     icon_name = icons[V_MUTED];
-  else if (volume <= 0.3)
+  }
+  else if (volume <= 0.3) {
     icon_name = icons[V_LOW];
-  else if (volume <= 0.7)
+  }
+  else if (volume <= 0.7) {
     icon_name = icons[V_MEDIUM];
-  else
+  }
+  else {
     icon_name = icons[V_HIGH];
+  }
 
   if (!connected)
     tip_text = g_strdup_printf (_("Not connected to the PulseAudio server"));
@@ -316,8 +328,20 @@ pulseaudio_button_update (PulseaudioButton *button,
 
   if (force_update || icon_name != button->icon_name)
     {
+
+      if (icon_name == icons[V_MUTED]) {
+        gtk_image_set_from_file(GTK_IMAGE (button->image), icon_filenames[V_MUTED]);
+      } else if (icon_name == icons[V_LOW]) {
+        gtk_image_set_from_file(GTK_IMAGE (button->image), icon_filenames[V_LOW]);
+      } else if (icon_name == icons[V_MEDIUM]) {
+        gtk_image_set_from_file(GTK_IMAGE (button->image), icon_filenames[V_MEDIUM]);
+      } else if (icon_name == icons[V_HIGH]) {
+        gtk_image_set_from_file(GTK_IMAGE (button->image), icon_filenames[V_HIGH]);
+      }
+
       button->icon_name = icon_name;
-      gtk_image_set_from_icon_name (GTK_IMAGE (button->image), icon_name, GTK_ICON_SIZE_BUTTON);
+      //gtk_image_set_from_icon_name (GTK_IMAGE (button->image), icon_name, GTK_ICON_SIZE_BUTTON);
+      //gtk_image_set_from_file(GTK_IMAGE (button->image), "/home/josep/.scripts/xfce-i3-bar/ico/battery/battery-000.svg.png");
       gtk_image_set_pixel_size (GTK_IMAGE (button->image), button->icon_size);
     }
 }
