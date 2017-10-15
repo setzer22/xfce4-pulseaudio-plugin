@@ -1,3 +1,33 @@
+# Xfce PulseAudio Panel Plugin
+
+This modified version of the Xfce Pulseaudio Panel Plugin supports custom volume icons! Icons are defined as 
+constants in the code, so to change you need to recompile.
+
+## Configuration
+
+Modify line 64 of `panel-plugin/pulseaudio-button.c` with paths from your filesystem.
+
+```
+static const char* icon_filenames[] = {"/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-mute.png",
+                                      "/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-low.png",
+                                      "/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-medium.png",
+                                      "/home/josep/.scripts/xfce-i3-bar/ico/volume/volume-high.png"};
+```
+
+## Installation
+
+To install, run the following commands in a terminal at the repository root.
+
+```
+$ ./autogen.sh
+$ ./configure --prefix=/usr/
+$ make
+$ sudo make install
+```
+To see the changes, log out and back in or restart the panel with `xfce4-panel -r`
+
+# Original Readme File
+
 Xfce PulseAudio Panel Plugin
 ============================
 
