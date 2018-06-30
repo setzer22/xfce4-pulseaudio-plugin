@@ -3,13 +3,13 @@
 # This file is distributed under the same license as the PACKAGE package.
 # 
 # Translators:
-# scootergrisen, 2016-2017
+# scootergrisen, 2016-2018
 msgid ""
 msgstr ""
 "Project-Id-Version: Xfce Panel Plugins\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-09-24 00:46+0200\n"
-"PO-Revision-Date: 2017-09-30 14:18+0000\n"
+"POT-Creation-Date: 2018-02-25 18:32+0100\n"
+"PO-Revision-Date: 2018-02-26 16:45+0000\n"
 "Last-Translator: scootergrisen\n"
 "Language-Team: Danish (http://www.transifex.com/xfce/xfce-panel-plugins/language/da/)\n"
 "MIME-Version: 1.0\n"
@@ -23,13 +23,13 @@ msgid "PulseAudio Plugin"
 msgstr "PulseAudio-plugin"
 
 #: ../panel-plugin/pulseaudio.desktop.in.in.h:2
-#: ../panel-plugin/pulseaudio-plugin.c:226
+#: ../panel-plugin/pulseaudio-plugin.c:241
 msgid "Adjust the audio volume of the PulseAudio sound system"
 msgstr "Justér lydstyrken på PulseAudio-lydsystemet"
 
 #: ../panel-plugin/pulseaudio-dialog.glade.h:1
 msgid "PulseAudio Panel Plugin"
-msgstr "PulseAudio panel-plugin"
+msgstr "PulseAudio-panelplugin"
 
 #: ../panel-plugin/pulseaudio-dialog.glade.h:2
 msgid "Enable keyboard _shortcuts for volume control"
@@ -62,88 +62,118 @@ msgstr "Lyd_mikser"
 msgid ""
 "Audio mixer command that can be executed from the context menu, e.g. "
 "\"pavucontrol\", \"unity-control-center sound\"."
-msgstr "Lydmikser-kommando som kan eksekveres fra genvejsmenuen, f.eks. \"pavucontrol\", \"unity-control-center sound\"."
+msgstr "Lydmikser-kommando som kan udføres fra genvejsmenuen, f.eks. \"pavucontrol\", \"unity-control-center sound\"."
 
 #: ../panel-plugin/pulseaudio-dialog.glade.h:9
 msgid "_Run Audio Mixer..."
 msgstr "_Kør lydmikser..."
 
 #: ../panel-plugin/pulseaudio-dialog.glade.h:10
-msgid "Sound settings"
+msgid "Sound Settings"
 msgstr "Lydindstillinger"
 
 #: ../panel-plugin/pulseaudio-dialog.glade.h:11
-msgid "Control playback of media players"
-msgstr "Kontrollér afspilning af medieafspillere"
+msgid "General"
+msgstr "Generelt"
 
 #: ../panel-plugin/pulseaudio-dialog.glade.h:12
+msgid "Control Playback of Media Players"
+msgstr "Styr afspilningen af medieafspillere"
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:13
+msgid "Enable multimedia keys for playback control"
+msgstr "Aktivér multimedietaster for styring af afspilning"
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:14
+msgid "Enable experimental window focus support"
+msgstr "Aktivér understøttelse af eksperimentel vinduesfokus"
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:15
+msgid "Title"
+msgstr "Titel"
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:16
+msgid "Hidden"
+msgstr "Skjult"
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:17
+msgid "Clear Known Items"
+msgstr "Ryd kendte elementer"
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:18
+msgid "Please restart your panel for additional players to be displayed."
+msgstr "Genstart venligst dit panel for at vise yderligere afspillere."
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:19
+msgid "Known Media Players"
+msgstr "Kendte medieafspillere"
+
+#: ../panel-plugin/pulseaudio-dialog.glade.h:20
 msgid "Media Players"
 msgstr "Medieafspillere"
 
-#: ../panel-plugin/pulseaudio-plugin.c:228
+#: ../panel-plugin/pulseaudio-plugin.c:243
 msgid "Copyright © 2014-2017 Andrzej Radecki et al.\n"
 msgstr "Ophavsret © 2014-2017 Andrzej Radecki med flere.\n"
 
-#: ../panel-plugin/pulseaudio-dialog.c:135
-#: ../panel-plugin/pulseaudio-menu.c:258
+#: ../panel-plugin/pulseaudio-dialog.c:139
+#: ../panel-plugin/pulseaudio-menu.c:264
 #, c-format
 msgid ""
 "<big><b>Failed to execute command \"%s\".</b></big>\n"
 "\n"
 "%s"
-msgstr "<big><b>Kunne ikke eksekvere kommandoen \"%s\".</b></big>\n\n%s"
+msgstr "<big><b>Kunne ikke udføre kommandoen \"%s\".</b></big>\n\n%s"
 
-#: ../panel-plugin/pulseaudio-dialog.c:138
-#: ../panel-plugin/pulseaudio-menu.c:261
+#: ../panel-plugin/pulseaudio-dialog.c:142
+#: ../panel-plugin/pulseaudio-menu.c:267
 msgid "Error"
 msgstr "Fejl"
 
-#: ../panel-plugin/pulseaudio-button.c:309
-#: ../panel-plugin/pulseaudio-notify.c:196
+#: ../panel-plugin/pulseaudio-button.c:333
+#: ../panel-plugin/pulseaudio-notify.c:199
 #, c-format
 msgid "Not connected to the PulseAudio server"
 msgstr "Ikke forbundet til PulseAudio-serveren"
 
-#: ../panel-plugin/pulseaudio-button.c:311
+#: ../panel-plugin/pulseaudio-button.c:335
 #, c-format
 msgid "Volume %d%% (muted)"
-msgstr "Lydstyrke %d%% (slået fra)"
+msgstr "Lydstyrke %d%% (lydløs)"
 
-#: ../panel-plugin/pulseaudio-button.c:313
+#: ../panel-plugin/pulseaudio-button.c:337
 #, c-format
 msgid "Volume %d%%"
 msgstr "Lydstyrke %d%%"
 
-#: ../panel-plugin/pulseaudio-menu.c:446
+#: ../panel-plugin/pulseaudio-menu.c:501
 msgid "Output"
 msgstr "Output"
 
-#: ../panel-plugin/pulseaudio-menu.c:480
+#: ../panel-plugin/pulseaudio-menu.c:540
 msgid "Input"
 msgstr "Input"
 
+#: ../panel-plugin/pulseaudio-menu.c:628
+msgid "Choose Playlist"
+msgstr "Vælg spilleliste"
+
 #. Audio mixers
-#: ../panel-plugin/pulseaudio-menu.c:579
+#: ../panel-plugin/pulseaudio-menu.c:665
 msgid "_Audio mixer..."
 msgstr "_Lydmikser..."
 
-#: ../panel-plugin/pulseaudio-notify.c:198
+#: ../panel-plugin/pulseaudio-notify.c:201
 #, c-format
 msgid "Volume %d%c (muted)"
-msgstr "Lydstyrke %d%c (slået fra)"
+msgstr "Lydstyrke %d%c (lydløs)"
 
-#: ../panel-plugin/pulseaudio-notify.c:200
+#: ../panel-plugin/pulseaudio-notify.c:203
 #, c-format
 msgid "Volume %d%c"
 msgstr "Lydstyrke %d%c"
 
-#. TRANSLATORS: <b>{Input/Output} ({Device Name})</b>
-#: ../panel-plugin/devicemenuitem.c:164
-#, c-format
-msgid "<b>%s (%s)</b>"
-msgstr "<b>%s (%s)</b>"
-
-#: ../panel-plugin/mprismenuitem.c:357 ../panel-plugin/mprismenuitem.c:430
-#: ../panel-plugin/mprismenuitem.c:795
+#: ../panel-plugin/mprismenuitem.c:373 ../panel-plugin/mprismenuitem.c:446
+#: ../panel-plugin/mprismenuitem.c:822
 msgid "Not currently playing"
 msgstr "Afspiller ikke i øjeblikket"

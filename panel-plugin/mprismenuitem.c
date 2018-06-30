@@ -29,15 +29,16 @@
 #endif
 
 #include "mprismenuitem.h"
+#include "pulseaudio-mpris.h"
 
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
 #include <gio/gdesktopappinfo.h>
 
+
+
 /* for DBG/TRACE */
 #include <libxfce4util/libxfce4util.h>
-
-
 
 struct _MprisMenuItemPrivate {
   GtkWidget *title_label;
@@ -52,6 +53,7 @@ struct _MprisMenuItemPrivate {
   gboolean   can_pause;
   gboolean   can_go_next;
   gboolean   can_raise;
+  gboolean   can_raise_wnck;
 
   gboolean   is_running;
   gboolean   is_playing;
@@ -89,6 +91,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 /* Static Declarations */
 static void         mpris_menu_item_finalize                (GObject        *object);
 static void         mpris_menu_item_raise                   (MprisMenuItem  *item);
+
 static void         mpris_menu_item_launch                  (MprisMenuItem  *item);
 static void         mpris_menu_item_raise_or_launch         (MprisMenuItem  *item);
 static GtkWidget *  mpris_menu_item_get_widget_at_event     (MprisMenuItem  *item,
@@ -112,7 +115,6 @@ static void         gtk_label_set_markup_printf_escaped     (GtkLabel       *lab
                                                              const gchar    *format,
                                                                              ...);
 static void         update_packing                          (MprisMenuItem  *item);
-static gchar *      find_desktop_entry                      (const gchar    *player_name);
 
 
 
@@ -154,35 +156,16 @@ GtkWidget*
 mpris_menu_item_new_from_player_name (const gchar *player)
 {
   GtkWidget *widget = NULL;
-  GKeyFile  *key_file;
-  gchar     *file;
-  gchar     *filename;
+  gchar     *name;
+  gchar     *icon_name;
   gchar     *full_path;
 
-  filename = find_desktop_entry (player);
-  if (filename == NULL)
-    {
-      g_free (filename);
-      return NULL;
-    }
-
-  file = g_strconcat("applications/", filename, NULL);
-  g_free (filename);
-
-  key_file = g_key_file_new();
-  if (g_key_file_load_from_data_dirs (key_file, file, &full_path, G_KEY_FILE_NONE, NULL))
-    {
-      gchar *name = g_key_file_get_string (key_file, "Desktop Entry", "Name", NULL);
-      gchar *icon_name = g_key_file_get_string (key_file, "Desktop Entry", "Icon", NULL);
-
-      widget = mpris_menu_item_new_with_player (player, name, icon_name, full_path);
-
-      g_free (name);
-      g_free (icon_name);
-    }
-
-  g_key_file_free (key_file);
-  g_free (file);
+  if (pulseaudio_mpris_get_player_summary (player, &name, &icon_name, &full_path)) {
+    widget = mpris_menu_item_new_with_player (player, name, icon_name, full_path);
+    g_free (name);
+    g_free (icon_name);
+    g_free (full_path);
+  }
 
   return widget;
 }
@@ -340,6 +323,21 @@ mpris_menu_item_set_can_raise (MprisMenuItem *item,
 
 
 void
+mpris_menu_item_set_can_raise_wnck (MprisMenuItem *item,
+                                    gboolean       can_raise)
+{
+  MprisMenuItemPrivate *priv;
+
+  g_return_if_fail (IS_MPRIS_MENU_ITEM (item));
+
+  priv = GET_PRIVATE (item);
+
+  priv->can_raise_wnck = can_raise;
+}
+
+
+
+void
 mpris_menu_item_set_is_running (MprisMenuItem *item,
                                 gboolean       running)
 {
@@ -449,7 +447,7 @@ mpris_menu_item_class_init (MprisMenuItemClass *item_class)
    * @menuitem: the #MprisMenuItem for which the value changed
    * @value: the mpris signal to emit
    *
-   * Emitted whenever the a media button is clicked.
+   * Emitted whenever a media button is clicked.
    */
   signals[MEDIA_NOTIFY] = g_signal_new ("media-notify",
                                         TYPE_MPRIS_MENU_ITEM,
@@ -527,8 +525,19 @@ mpris_menu_item_raise (MprisMenuItem *item)
 
   priv = GET_PRIVATE (item);
 
-  if (priv->is_running && priv->can_raise)
-    media_notify (item, "Raise");
+  if (priv->is_running)
+    {
+      if (priv->can_raise)
+        {
+          media_notify (item, "Raise");
+        }
+#ifdef HAVE_WNCK
+      else if (priv->can_raise_wnck)
+        {
+          media_notify (item, "RaiseWnck");
+        }
+#endif
+    }
 }
 
 
@@ -816,47 +825,4 @@ G_GNUC_END_IGNORE_DEPRECATIONS
   gtk_widget_show_all (priv->vbox);
 
   gtk_container_add (GTK_CONTAINER (item), priv->hbox);
-}
-
-
-
-static gchar *
-find_desktop_entry (const gchar *player_name)
-{
-  GKeyFile  *key_file;
-  gchar     *file;
-  gchar     *filename = NULL;
-  gchar     *full_path;
-
-  file = g_strconcat ("applications/", player_name, ".desktop", NULL);
-
-  key_file = g_key_file_new();
-  if (g_key_file_load_from_data_dirs (key_file, file, &full_path, G_KEY_FILE_NONE, NULL))
-    {
-      filename = g_strconcat (player_name, ".desktop", NULL);
-    }
-  else
-    {
-      /* Support reverse domain name (RDN) formatted launchers. */
-      gchar ***results = g_desktop_app_info_search (player_name);
-      gint i, j;
-
-      for (i = 0; results[i]; i++)
-        {
-          for (j = 0; results[i][j]; j++)
-            {
-              if (filename == NULL)
-                {
-                  filename = g_strdup (results[i][j]);
-                }
-            }
-          g_strfreev (results[i]);
-      }
-      g_free (results);
-    }
-
-  g_key_file_free (key_file);
-  g_free (file);
-
-  return filename;
 }

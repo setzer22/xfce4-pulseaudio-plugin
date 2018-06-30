@@ -39,6 +39,7 @@ GType              pulseaudio_config_get_type                       (void)      
 PulseaudioConfig  *pulseaudio_config_new                            (const gchar          *property_base);
 
 gboolean           pulseaudio_config_get_enable_keyboard_shortcuts  (PulseaudioConfig     *config);
+gboolean           pulseaudio_config_get_enable_multimedia_keys     (PulseaudioConfig     *config);
 gboolean           pulseaudio_config_get_show_notifications         (PulseaudioConfig     *config);
 guint              pulseaudio_config_get_volume_step                (PulseaudioConfig     *config);
 guint              pulseaudio_config_get_volume_max                 (PulseaudioConfig     *config);
@@ -50,6 +51,19 @@ void               pulseaudio_config_set_mpris_players              (PulseaudioC
                                                                      gchar               **players);
 void               pulseaudio_config_add_mpris_player               (PulseaudioConfig     *config,
                                                                      gchar                *player);
+
+void               pulseaudio_config_player_blacklist_add           (PulseaudioConfig     *config,
+                                                                     const gchar          *player);
+void               pulseaudio_config_player_blacklist_remove        (PulseaudioConfig     *config,
+                                                                     const gchar          *player);
+gboolean           pulseaudio_config_player_blacklist_lookup        (PulseaudioConfig     *config,
+                                                                     gchar                *player);
+
+void               pulseaudio_config_clear_known_players            (PulseaudioConfig     *config);
+
+void               pulseaudio_config_set_can_raise_wnck             (PulseaudioConfig     *config,
+                                                                     gboolean              can_raise);
+gboolean           pulseaudio_config_get_can_raise_wnck             (PulseaudioConfig     *config);
 
 G_END_DECLS
 

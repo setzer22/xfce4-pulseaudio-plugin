@@ -41,6 +41,7 @@
 #include "scalemenuitem.h"
 
 
+
 struct _PulseaudioMenu
 {
   GtkMenu             __parent__;
@@ -63,10 +64,14 @@ struct _PulseaudioMenuClass
 };
 
 
+
 static void             pulseaudio_menu_finalize         (GObject       *object);
 
 
+
 G_DEFINE_TYPE (PulseaudioMenu, pulseaudio_menu, GTK_TYPE_MENU)
+
+
 
 static void
 pulseaudio_menu_class_init (PulseaudioMenuClass *klass)
@@ -91,6 +96,7 @@ pulseaudio_menu_init (PulseaudioMenu *menu)
   menu->volume_changed_id              = 0;
   menu->volume_mic_changed_id          = 0;
 }
+
 
 
 static void
@@ -268,6 +274,26 @@ pulseaudio_menu_run_audio_mixer (PulseaudioMenu   *menu,
 
 
 static void
+pulseaudio_menu_activate_playlist (PulseaudioMenu *menu,
+                                   GtkMenuItem    *menu_item)
+{
+  gchar *player;
+  gchar *playlist;
+
+  g_return_if_fail(IS_PULSEAUDIO_MENU(menu));
+
+  player = g_strdup (g_object_get_data (G_OBJECT (menu_item), "player"));
+  playlist = g_strdup (g_object_get_data (G_OBJECT (menu_item), "playlist"));
+
+  pulseaudio_mpris_activate_playlist (menu->mpris, player, playlist);
+
+  g_free (player);
+  g_free (playlist);
+}
+
+
+
+static void
 pulseaudio_menu_volume_changed (PulseaudioMenu   *menu,
                                 gboolean          should_notify,
                                 PulseaudioVolume *volume)
@@ -298,6 +324,8 @@ pulseaudio_menu_volume_changed (PulseaudioMenu   *menu,
   scale_menu_item_set_value (SCALE_MENU_ITEM (menu->input_scale), pulseaudio_volume_get_volume_mic (menu->volume) * 100.0);
 }
 
+
+
 #ifdef HAVE_MPRIS2
 static void
 media_notify_cb (GtkWidget  *widget,
@@ -311,6 +339,8 @@ media_notify_cb (GtkWidget  *widget,
 
   pulseaudio_mpris_notify_player (menu->mpris, mpris_menu_item_get_player (MPRIS_MENU_ITEM (widget)), message);
 }
+
+
 
 static void
 mpris_update_cb (PulseaudioMpris *mpris,
@@ -329,50 +359,54 @@ mpris_update_cb (PulseaudioMpris *mpris,
   gboolean        can_go_previous;
   gboolean        can_go_next;
   gboolean        can_raise;
+  GList          *playlists;
 
   g_return_if_fail (IS_PULSEAUDIO_MPRIS (mpris));
   g_return_if_fail (IS_MPRIS_MENU_ITEM (menu_item));
 
   if (mpris_menu_item_get_player (menu_item) == NULL)
+    return;
+
+  if (g_strcmp0 (player, mpris_menu_item_get_player (menu_item)) == 0)
     {
-      return;
-    }
+      if (pulseaudio_mpris_get_player_snapshot (mpris,
+                                                player,
+                                                &title,
+                                                &artist,
+                                                &is_running,
+                                                &is_playing,
+                                                &is_stopped,
+                                                &can_play,
+                                                &can_pause,
+                                                &can_go_previous,
+                                                &can_go_next,
+                                                &can_raise,
+                                                &playlists))
+        {
+          mpris_menu_item_set_is_running (menu_item, is_running);
+          mpris_menu_item_set_title (menu_item, title);
+          mpris_menu_item_set_artist (menu_item, artist);
 
-    if (g_strcmp0 (player, mpris_menu_item_get_player (menu_item)) == 0)
-      {
-        if (pulseaudio_mpris_get_player_snapshot (mpris,
-                                                  player,
-                                                  &title,
-                                                  &artist,
-                                                  &is_running,
-                                                  &is_playing,
-                                                  &is_stopped,
-                                                  &can_play,
-                                                  &can_pause,
-                                                  &can_go_previous,
-                                                  &can_go_next,
-                                                  &can_raise))
-          {
-            mpris_menu_item_set_is_running (menu_item, is_running);
-            mpris_menu_item_set_title (menu_item, title);
-            mpris_menu_item_set_artist (menu_item, artist);
+          mpris_menu_item_set_can_play (menu_item, can_play);
+          mpris_menu_item_set_can_pause (menu_item, can_pause);
 
-            mpris_menu_item_set_can_play (menu_item, can_play);
-            mpris_menu_item_set_can_pause (menu_item, can_pause);
+          mpris_menu_item_set_can_go_previous (menu_item, can_go_previous);
+          mpris_menu_item_set_can_go_next (menu_item, can_go_next);
 
-            mpris_menu_item_set_can_go_previous (menu_item, can_go_previous);
-            mpris_menu_item_set_can_go_next (menu_item, can_go_next);
+          mpris_menu_item_set_is_playing (menu_item, is_playing);
+          mpris_menu_item_set_is_stopped (menu_item, is_stopped);
+        }
 
-            mpris_menu_item_set_is_playing (menu_item, is_playing);
-            mpris_menu_item_set_is_stopped (menu_item, is_stopped);
-          }
-
-        if (title != NULL)
-          g_free (title);
-        if (artist != NULL)
-          g_free (artist);
+      if (title != NULL)
+        g_free (title);
+      if (artist != NULL)
+        g_free (artist);
+      if (playlists != NULL)
+        g_list_free (playlists);
     }
 }
+
+
 
 static void
 item_destroy_cb (GtkWidget  *widget,
@@ -387,6 +421,8 @@ item_destroy_cb (GtkWidget  *widget,
 }
 #endif
 
+
+
 PulseaudioMenu *
 pulseaudio_menu_new (PulseaudioVolume *volume,
                      PulseaudioConfig *config,
@@ -400,6 +436,8 @@ pulseaudio_menu_new (PulseaudioVolume *volume,
   gdouble         volume_max;
 
   GList          *sources = NULL;
+  GList          *list = NULL;
+  guint           i = 0;
 
 #ifdef HAVE_MPRIS2
   gchar         **players;
@@ -413,6 +451,8 @@ pulseaudio_menu_new (PulseaudioVolume *volume,
   gboolean        can_go_previous;
   gboolean        can_go_next;
   gboolean        can_raise;
+  GList          *playlists = NULL;
+  GtkWidget      *submenu = NULL;
 #endif
 
   g_return_val_if_fail (IS_PULSEAUDIO_VOLUME (volume), NULL);
@@ -442,70 +482,81 @@ pulseaudio_menu_new (PulseaudioVolume *volume,
 
   /* Output Devices */
   sources = pulseaudio_volume_get_output_list (menu->volume);
-  if (g_list_length (sources) > 0) {
-    device_mi = device_menu_item_new_with_label (_("Output"));
+  if (g_list_length (sources) > 0)
+    {
+      /* output volume slider */
+      menu->output_scale = scale_menu_item_new_with_range (0.0, volume_max, 1.0);
+      scale_menu_item_set_base_icon_name (SCALE_MENU_ITEM (menu->output_scale), "audio-volume");
 
-    for (GList *list = sources; list != NULL; list = g_list_next (list)) {
-      device_menu_item_add_device (DEVICE_MENU_ITEM (device_mi), (gchar *)list->data, pulseaudio_volume_get_output_by_name (menu->volume, list->data));
+      g_signal_connect_swapped (menu->output_scale, "value-changed", G_CALLBACK (pulseaudio_menu_output_range_value_changed), menu);
+      g_signal_connect_swapped (menu->output_scale, "toggled", G_CALLBACK (pulseaudio_menu_mute_output_item_toggled), menu);
+      g_signal_connect (menu->output_scale, "scroll-event", G_CALLBACK (pulseaudio_menu_output_range_scroll), menu);
+
+      gtk_widget_show_all (menu->output_scale);
+      gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu->output_scale);
+
+      /* output device items */
+      if (g_list_length (sources) > 1)
+        {
+          device_mi = device_menu_item_new_with_label(_("Output"));
+          for (list = sources; list != NULL; list = g_list_next(list))
+            {
+              device_menu_item_add_device(DEVICE_MENU_ITEM(device_mi), (gchar *)list->data, pulseaudio_volume_get_output_by_name(menu->volume, list->data));
+            }
+
+          device_menu_item_set_device_by_name(DEVICE_MENU_ITEM(device_mi), pulseaudio_volume_get_default_output(menu->volume));
+          gtk_widget_show(device_mi);
+
+          g_signal_connect_swapped(G_OBJECT(device_mi), "device-changed", G_CALLBACK(pulseaudio_menu_default_output_changed), menu);
+
+          gtk_menu_shell_append(GTK_MENU_SHELL(menu), device_mi);
+        }
+
+      /* separator */
+      mi = gtk_separator_menu_item_new ();
+      gtk_widget_show (mi);
+      gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
     }
-
-    device_menu_item_set_device_by_name (DEVICE_MENU_ITEM (device_mi), pulseaudio_volume_get_default_output (menu->volume));
-    gtk_widget_show (device_mi);
-
-    g_signal_connect_swapped (G_OBJECT (device_mi), "device-changed", G_CALLBACK (pulseaudio_menu_default_output_changed), menu);
-
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), device_mi);
-
-    /* output volume slider */
-    menu->output_scale = scale_menu_item_new_with_range (0.0, volume_max, 1.0);
-    scale_menu_item_set_base_icon_name (SCALE_MENU_ITEM (menu->output_scale), "audio-volume");
-
-    g_signal_connect_swapped (menu->output_scale, "value-changed", G_CALLBACK (pulseaudio_menu_output_range_value_changed), menu);
-    g_signal_connect_swapped (menu->output_scale, "toggled", G_CALLBACK (pulseaudio_menu_mute_output_item_toggled), menu);
-    g_signal_connect (menu->output_scale, "scroll-event", G_CALLBACK (pulseaudio_menu_output_range_scroll), menu);
-
-    gtk_widget_show_all (menu->output_scale);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu->output_scale);
-
-    /* separator */
-    mi = gtk_separator_menu_item_new ();
-    gtk_widget_show (mi);
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-  }
   g_list_free (sources);
 
   /* Input Devices */
   sources = pulseaudio_volume_get_input_list (menu->volume);
-  if (g_list_length (sources) > 0) {
-    device_mi = device_menu_item_new_with_label (_("Input"));
+  if (g_list_length (sources) > 0)
+    {
+      /* input volume slider */
+      menu->input_scale = scale_menu_item_new_with_range (0.0, volume_max, 1.0);
+      scale_menu_item_set_base_icon_name (SCALE_MENU_ITEM (menu->input_scale), "microphone-sensitivity");
 
-    for (GList *list = sources; list != NULL; list = g_list_next (list)) {
-      device_menu_item_add_device (DEVICE_MENU_ITEM (device_mi), (gchar *)list->data, pulseaudio_volume_get_input_by_name (menu->volume, list->data));
+      g_signal_connect_swapped (menu->input_scale, "value-changed", G_CALLBACK (pulseaudio_menu_input_range_value_changed), menu);
+      g_signal_connect_swapped (menu->input_scale, "toggled", G_CALLBACK (pulseaudio_menu_mute_input_item_toggled), menu);
+      g_signal_connect (menu->input_scale, "scroll-event", G_CALLBACK (pulseaudio_menu_input_range_scroll), menu);
+
+      gtk_widget_show_all (menu->input_scale);
+      gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu->input_scale);
+
+      /* input device items */
+      if (g_list_length(sources) > 1)
+        {
+          device_mi = device_menu_item_new_with_label(_("Input"));
+          for (list = sources; list != NULL; list = g_list_next(list))
+            {
+              device_menu_item_add_device(DEVICE_MENU_ITEM(device_mi), (gchar *)list->data, pulseaudio_volume_get_input_by_name(menu->volume, list->data));
+            }
+
+          device_menu_item_set_device_by_name(DEVICE_MENU_ITEM(device_mi), pulseaudio_volume_get_default_input(menu->volume));
+          gtk_widget_show(device_mi);
+
+          g_signal_connect_swapped(G_OBJECT(device_mi), "device-changed", G_CALLBACK(pulseaudio_menu_default_input_changed), menu);
+
+          gtk_menu_shell_append(GTK_MENU_SHELL(menu), device_mi);
+        }
+
+      /* separator */
+      mi = gtk_separator_menu_item_new();
+      gtk_widget_show(mi);
+      gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi);
     }
-
-    device_menu_item_set_device_by_name (DEVICE_MENU_ITEM (device_mi), pulseaudio_volume_get_default_input (menu->volume));
-    gtk_widget_show (device_mi);
-
-    g_signal_connect_swapped (G_OBJECT (device_mi), "device-changed", G_CALLBACK (pulseaudio_menu_default_input_changed), menu);
-
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), device_mi);
-
-    /* input volume slider */
-    menu->input_scale = scale_menu_item_new_with_range (0.0, volume_max, 1.0);
-    scale_menu_item_set_base_icon_name (SCALE_MENU_ITEM (menu->input_scale), "microphone-sensitivity");
-
-    g_signal_connect_swapped (menu->input_scale, "value-changed", G_CALLBACK (pulseaudio_menu_input_range_value_changed), menu);
-    g_signal_connect_swapped (menu->input_scale, "toggled", G_CALLBACK (pulseaudio_menu_mute_input_item_toggled), menu);
-    g_signal_connect (menu->input_scale, "scroll-event", G_CALLBACK (pulseaudio_menu_input_range_scroll), menu);
-
-    gtk_widget_show_all (menu->input_scale);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu->input_scale);
-
-    /* separator */
-    mi = gtk_separator_menu_item_new ();
-    gtk_widget_show (mi);
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-  }
+  g_list_free (sources);
 
   /* MPRIS2 */
 #ifdef HAVE_MPRIS2
@@ -514,8 +565,11 @@ pulseaudio_menu_new (PulseaudioVolume *volume,
       players = pulseaudio_config_get_mpris_players (menu->config);
       if (players != NULL)
         {
-          for (guint i = 0; i < g_strv_length (players); i++)
+          for (i = 0; i < g_strv_length (players); i++)
             {
+              if (pulseaudio_config_player_blacklist_lookup (menu->config, players[i]))
+                continue;
+
               mi = mpris_menu_item_new_from_player_name (players[i]);
               if (mi != NULL)
                 {
@@ -530,13 +584,15 @@ pulseaudio_menu_new (PulseaudioVolume *volume,
                                                             &can_pause,
                                                             &can_go_previous,
                                                             &can_go_next,
-                                                            &can_raise))
+                                                            &can_raise,
+                                                            &playlists))
                     {
                       mpris_menu_item_set_is_running (MPRIS_MENU_ITEM (mi), is_running);
                       mpris_menu_item_set_title (MPRIS_MENU_ITEM (mi), title);
                       mpris_menu_item_set_artist (MPRIS_MENU_ITEM (mi), artist);
 
                       mpris_menu_item_set_can_raise (MPRIS_MENU_ITEM (mi), can_raise);
+                      mpris_menu_item_set_can_raise_wnck (MPRIS_MENU_ITEM (mi), pulseaudio_config_get_can_raise_wnck (menu->config));
 
                       mpris_menu_item_set_can_play (MPRIS_MENU_ITEM (mi), can_play);
                       mpris_menu_item_set_can_pause (MPRIS_MENU_ITEM (mi), can_pause);
@@ -562,8 +618,36 @@ pulseaudio_menu_new (PulseaudioVolume *volume,
                   g_signal_connect (menu->mpris, "update", G_CALLBACK (mpris_update_cb), mi);
                   g_signal_connect (mi, "destroy", G_CALLBACK(item_destroy_cb), menu);
 
-                  gtk_widget_show (mi);
-                  gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+                  gtk_widget_show(mi);
+                  gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi);
+
+                  if (playlists != NULL)
+                    {
+                      if (g_list_length(playlists) > 0)
+                      {
+                        mi = gtk_menu_item_new_with_label(_("Choose Playlist"));
+                        gtk_widget_show(mi);
+                        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mi);
+
+                        submenu = gtk_menu_new();
+                        gtk_menu_item_set_submenu(GTK_MENU_ITEM(mi), submenu);
+
+                        for (list = playlists; list != NULL; list = g_list_next(list))
+                        {
+                          mi = gtk_menu_item_new_with_label((gchar *)list->data);
+                          gtk_widget_show(mi);
+                          gtk_menu_shell_append(GTK_MENU_SHELL(submenu), mi);
+
+                          g_object_set_data (G_OBJECT(mi), "player", g_strdup (players[i]));
+                          g_object_set_data (G_OBJECT(mi), "playlist", g_strdup ((gchar *)list->data));
+
+                          g_signal_connect_swapped(G_OBJECT(mi), "activate", G_CALLBACK (pulseaudio_menu_activate_playlist), menu);
+                        }
+                      }
+
+                      g_list_free(playlists);
+                      playlists = NULL;
+                    }
 
                   /* separator */
                   mi = gtk_separator_menu_item_new ();
@@ -571,6 +655,8 @@ pulseaudio_menu_new (PulseaudioVolume *volume,
                   gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
                 }
             }
+
+          g_strfreev (players);
         }
     }
 #endif

@@ -78,6 +78,7 @@ static void                 pulseaudio_button_update          (PulseaudioButton 
                                                                gboolean            force_update);
 
 
+
 struct _PulseaudioButton
 {
   GtkToggleButton       __parent__;
@@ -103,7 +104,6 @@ struct _PulseaudioButtonClass
 {
   GtkToggleButtonClass __parent__;
 };
-
 
 
 
@@ -188,6 +188,7 @@ pulseaudio_button_finalize (GObject *object)
 }
 
 
+
 static gboolean
 pulseaudio_button_button_press (GtkWidget      *widget,
                                 GdkEventButton *event)
@@ -228,6 +229,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 }
 
 
+
 static gboolean
 pulseaudio_button_scroll_event (GtkWidget *widget, GdkEventScroll *event)
 {
@@ -235,7 +237,6 @@ pulseaudio_button_scroll_event (GtkWidget *widget, GdkEventScroll *event)
   gdouble           volume      = pulseaudio_volume_get_volume (button->volume);
   gdouble           volume_step = pulseaudio_config_get_volume_step (button->config) / 100.0;
   gdouble           new_volume;
-
 
   if (event->direction == 1)  // decrease volume
     new_volume = volume - volume_step;
@@ -248,6 +249,7 @@ pulseaudio_button_scroll_event (GtkWidget *widget, GdkEventScroll *event)
 
   return TRUE;
 }
+
 
 
 static void
@@ -274,6 +276,7 @@ pulseaudio_button_menu_deactivate (PulseaudioButton *button,
 }
 
 
+
 static void
 pulseaudio_button_update_icons (PulseaudioButton *button)
 {
@@ -282,12 +285,31 @@ pulseaudio_button_update_icons (PulseaudioButton *button)
 }
 
 
+
+static gboolean
+pulseaudio_button_sink_connection_timeout  (gpointer userdata)
+{
+  PulseaudioButton *button = PULSEAUDIO_BUTTON (userdata);
+  gboolean sink_connected = pulseaudio_volume_get_sink_connected (button->volume);
+
+  if (sink_connected)
+  {
+    pulseaudio_button_update (button, TRUE);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+
 static void
 pulseaudio_button_update (PulseaudioButton *button,
                           gboolean          force_update)
 {
   gdouble      volume;
   gboolean     connected;
+  gboolean     sink_connected;
   gboolean     muted;
   gchar       *tip_text;
   const gchar *icon_name;
@@ -298,6 +320,8 @@ pulseaudio_button_update (PulseaudioButton *button,
   volume = pulseaudio_volume_get_volume (button->volume);
   muted = pulseaudio_volume_get_muted (button->volume);
   connected = pulseaudio_volume_get_connected (button->volume);
+  sink_connected = pulseaudio_volume_get_sink_connected (button->volume);
+
   if (!connected) {
     icon_name = icons[V_MUTED];
   }
@@ -344,7 +368,11 @@ pulseaudio_button_update (PulseaudioButton *button,
       //gtk_image_set_from_file(GTK_IMAGE (button->image), "/home/josep/.scripts/xfce-i3-bar/ico/battery/battery-000.svg.png");
       gtk_image_set_pixel_size (GTK_IMAGE (button->image), button->icon_size);
     }
+
+  if (!sink_connected)
+    g_timeout_add (250, pulseaudio_button_sink_connection_timeout, button);
 }
+
 
 
 void

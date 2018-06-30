@@ -43,19 +43,22 @@
 
 
 
-
 #define DEFAULT_ENABLE_KEYBOARD_SHORTCUTS         TRUE
 #define DEFAULT_SHOW_NOTIFICATIONS                TRUE
-#define DEFAULT_VOLUME_STEP                       6
-#define DEFAULT_VOLUME_MAX                        153
+#define DEFAULT_VOLUME_STEP                       5
+#define DEFAULT_VOLUME_MAX                        150
 
 #ifdef HAVE_MPRIS2
 #define DEFAULT_ENABLE_MPRIS                      TRUE
+#define DEFAULT_ENABLE_MULTIMEDIA_KEYS            TRUE
 #else
 #define DEFAULT_ENABLE_MPRIS                      FALSE
+#define DEFAULT_ENABLE_MULTIMEDIA_KEYS            FALSE
 #endif
+#define DEFAULT_BLACKLISTED_PLAYERS               ""
 
 #define DEFAULT_MPRIS_PLAYERS                     ""
+#define DEFAULT_ENABLE_WNCK                       FALSE
 
 
 
@@ -81,12 +84,15 @@ struct _PulseaudioConfig
   GObject          __parent__;
 
   gboolean         enable_keyboard_shortcuts;
+  gboolean         enable_multimedia_keys;
   gboolean         show_notifications;
   guint            volume_step;
   guint            volume_max;
   gchar           *mixer_command;
   gboolean         enable_mpris;
   gchar           *mpris_players;
+  gchar           *blacklisted_players;
+  gboolean         enable_wnck;
 };
 
 
@@ -95,12 +101,15 @@ enum
   {
     PROP_0,
     PROP_ENABLE_KEYBOARD_SHORTCUTS,
+    PROP_ENABLE_MULTIMEDIA_KEYS,
     PROP_SHOW_NOTIFICATIONS,
     PROP_VOLUME_STEP,
     PROP_VOLUME_MAX,
     PROP_MIXER_COMMAND,
     PROP_ENABLE_MPRIS,
     PROP_MPRIS_PLAYERS,
+    PROP_BLACKLISTED_PLAYERS,
+    PROP_ENABLE_WNCK,
     N_PROPERTIES,
   };
 
@@ -111,6 +120,7 @@ enum
   };
 
 static guint pulseaudio_config_signals [LAST_SIGNAL] = { 0, };
+
 
 
 G_DEFINE_TYPE (PulseaudioConfig, pulseaudio_config, G_TYPE_OBJECT)
@@ -131,6 +141,15 @@ pulseaudio_config_class_init (PulseaudioConfigClass *klass)
                                    PROP_ENABLE_KEYBOARD_SHORTCUTS,
                                    g_param_spec_boolean ("enable-keyboard-shortcuts", NULL, NULL,
                                                          DEFAULT_ENABLE_KEYBOARD_SHORTCUTS,
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_STATIC_STRINGS));
+
+
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_ENABLE_MULTIMEDIA_KEYS,
+                                   g_param_spec_boolean ("enable-multimedia-keys", NULL, NULL,
+                                                         DEFAULT_ENABLE_MULTIMEDIA_KEYS,
                                                          G_PARAM_READWRITE |
                                                          G_PARAM_STATIC_STRINGS));
 
@@ -192,6 +211,25 @@ pulseaudio_config_class_init (PulseaudioConfigClass *klass)
 
 
 
+  g_object_class_install_property (gobject_class,
+                                   PROP_BLACKLISTED_PLAYERS,
+                                   g_param_spec_string ("blacklisted-players",
+                                                        NULL, NULL,
+                                                        DEFAULT_BLACKLISTED_PLAYERS,
+                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_STATIC_STRINGS));
+
+
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_ENABLE_WNCK,
+                                   g_param_spec_boolean ("enable-wnck", NULL, NULL,
+                                                         DEFAULT_ENABLE_WNCK,
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_STATIC_STRINGS));
+
+
+
   pulseaudio_config_signals[CONFIGURATION_CHANGED] =
     g_signal_new (g_intern_static_string ("configuration-changed"),
                   G_TYPE_FROM_CLASS (gobject_class),
@@ -207,12 +245,15 @@ static void
 pulseaudio_config_init (PulseaudioConfig *config)
 {
   config->enable_keyboard_shortcuts = DEFAULT_ENABLE_KEYBOARD_SHORTCUTS;
+  config->enable_multimedia_keys    = DEFAULT_ENABLE_MULTIMEDIA_KEYS;
   config->show_notifications        = DEFAULT_SHOW_NOTIFICATIONS;
   config->volume_step               = DEFAULT_VOLUME_STEP;
   config->volume_max                = DEFAULT_VOLUME_MAX;
   config->mixer_command             = g_strdup (DEFAULT_MIXER_COMMAND);
   config->enable_mpris              = DEFAULT_ENABLE_MPRIS;
   config->mpris_players             = g_strdup (DEFAULT_MPRIS_PLAYERS);
+  config->blacklisted_players       = g_strdup (DEFAULT_BLACKLISTED_PLAYERS);
+  config->enable_wnck               = DEFAULT_ENABLE_WNCK;
 }
 
 
@@ -244,6 +285,10 @@ pulseaudio_config_get_property (GObject    *object,
       g_value_set_boolean (value, config->enable_keyboard_shortcuts);
       break;
 
+    case PROP_ENABLE_MULTIMEDIA_KEYS:
+      g_value_set_boolean (value, config->enable_multimedia_keys);
+      break;
+
     case PROP_SHOW_NOTIFICATIONS:
       g_value_set_boolean (value, config->show_notifications);
       break;
@@ -266,6 +311,14 @@ pulseaudio_config_get_property (GObject    *object,
 
     case PROP_MPRIS_PLAYERS:
       g_value_set_string (value, config->mpris_players);
+      break;
+
+    case PROP_BLACKLISTED_PLAYERS:
+      g_value_set_string (value, config->blacklisted_players);
+      break;
+
+    case PROP_ENABLE_WNCK:
+      g_value_set_boolean (value, config->enable_wnck);
       break;
 
     default:
@@ -294,6 +347,16 @@ pulseaudio_config_set_property (GObject      *object,
         {
           config->enable_keyboard_shortcuts = val_bool;
           g_object_notify (G_OBJECT (config), "enable-keyboard-shortcuts");
+          g_signal_emit (G_OBJECT (config), pulseaudio_config_signals [CONFIGURATION_CHANGED], 0);
+        }
+      break;
+
+    case PROP_ENABLE_MULTIMEDIA_KEYS:
+      val_bool = g_value_get_boolean (value);
+      if (config->enable_multimedia_keys != val_bool)
+        {
+          config->enable_multimedia_keys = val_bool;
+          g_object_notify (G_OBJECT (config), "enable-multimedia-keys");
           g_signal_emit (G_OBJECT (config), pulseaudio_config_signals [CONFIGURATION_CHANGED], 0);
         }
       break;
@@ -339,7 +402,17 @@ pulseaudio_config_set_property (GObject      *object,
         {
           config->enable_mpris = val_bool;
           g_object_notify (G_OBJECT (config), "enable-mpris");
-          g_signal_emit (G_OBJECT (config), pulseaudio_config_signals [CONFIGURATION_CHANGED], 0);
+
+          if (!config->enable_mpris)
+            {
+              config->enable_multimedia_keys = FALSE;
+              g_object_notify(G_OBJECT(config), "enable-multimedia-keys");
+
+              config->enable_wnck = FALSE;
+              g_object_notify(G_OBJECT(config), "enable-wnck");
+            }
+
+          g_signal_emit(G_OBJECT(config), pulseaudio_config_signals[CONFIGURATION_CHANGED], 0);
         }
       break;
 
@@ -350,12 +423,28 @@ pulseaudio_config_set_property (GObject      *object,
       g_signal_emit (G_OBJECT (config), pulseaudio_config_signals [CONFIGURATION_CHANGED], 0);
       break;
 
+    case PROP_BLACKLISTED_PLAYERS:
+      g_free (config->blacklisted_players);
+      config->blacklisted_players = g_value_dup_string (value);
+      g_object_notify (G_OBJECT (config), "blacklisted-players");
+      g_signal_emit (G_OBJECT (config), pulseaudio_config_signals [CONFIGURATION_CHANGED], 0);
+      break;
+
+    case PROP_ENABLE_WNCK:
+      val_bool = g_value_get_boolean(value);
+      if (config->enable_wnck != val_bool)
+      {
+        config->enable_wnck = val_bool;
+        g_object_notify (G_OBJECT (config), "enable-wnck");
+        g_signal_emit (G_OBJECT (config), pulseaudio_config_signals [CONFIGURATION_CHANGED], 0);
+      }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
 }
-
 
 
 
@@ -369,6 +458,15 @@ pulseaudio_config_get_enable_keyboard_shortcuts (PulseaudioConfig *config)
 
 
 
+gboolean
+pulseaudio_config_get_enable_multimedia_keys (PulseaudioConfig *config)
+{
+  g_return_val_if_fail (IS_PULSEAUDIO_CONFIG (config), DEFAULT_ENABLE_MULTIMEDIA_KEYS);
+
+  return config->enable_multimedia_keys;
+}
+
+
 
 gboolean
 pulseaudio_config_get_show_notifications (PulseaudioConfig *config)
@@ -377,7 +475,6 @@ pulseaudio_config_get_show_notifications (PulseaudioConfig *config)
 
   return config->show_notifications;
 }
-
 
 
 
@@ -391,7 +488,6 @@ pulseaudio_config_get_volume_step (PulseaudioConfig *config)
 
 
 
-
 guint
 pulseaudio_config_get_volume_max (PulseaudioConfig *config)
 {
@@ -399,7 +495,6 @@ pulseaudio_config_get_volume_max (PulseaudioConfig *config)
 
   return config->volume_max;
 }
-
 
 
 
@@ -413,7 +508,6 @@ pulseaudio_config_get_mixer_command (PulseaudioConfig *config)
 
 
 
-
 gboolean
 pulseaudio_config_get_enable_mpris (PulseaudioConfig *config)
 {
@@ -421,7 +515,6 @@ pulseaudio_config_get_enable_mpris (PulseaudioConfig *config)
 
   return config->enable_mpris;
 }
-
 
 
 
@@ -436,11 +529,15 @@ pulseaudio_config_get_mpris_players (PulseaudioConfig *config)
   return g_strsplit (config->mpris_players, ";", 0);
 }
 
+
+
 static gint
 compare_players (gconstpointer item1, gconstpointer item2)
 {
   return g_ascii_strcasecmp (item1, item2);
 }
+
+
 
 void
 pulseaudio_config_set_mpris_players (PulseaudioConfig  *config,
@@ -450,19 +547,24 @@ pulseaudio_config_set_mpris_players (PulseaudioConfig  *config,
   gchar  *player_string;
   GValue  src = { 0, };
   guint   index = 0;
+  guint   i = 0;
+  GSList *list = NULL;
 
   g_return_if_fail (IS_PULSEAUDIO_CONFIG (config));
 
   player_array = NULL;
-  for (guint i = 0; i < g_strv_length (players); i++) {
-    player_array = g_slist_prepend (player_array, players[i]);
-  }
+  for (i = 0; i < g_strv_length (players); i++)
+    {
+      player_array = g_slist_prepend (player_array, players[i]);
+    }
+
   player_array = g_slist_sort (player_array, (GCompareFunc) compare_players);
 
-  for (GSList *list = player_array; list != NULL; list = g_slist_next (list)) {
-    players[index] = list->data;
-    index++;
-  }
+  for (list = player_array; list != NULL; list = g_slist_next (list))
+    {
+      players[index] = list->data;
+      index++;
+    }
 
   g_slist_free (player_array);
 
@@ -472,7 +574,11 @@ pulseaudio_config_set_mpris_players (PulseaudioConfig  *config,
   g_value_set_static_string(&src, player_string);
 
   pulseaudio_config_set_property (G_OBJECT (config), PROP_MPRIS_PLAYERS, &src, NULL);
+
+  g_free (player_string);
 }
+
+
 
 void
 pulseaudio_config_add_mpris_player (PulseaudioConfig *config,
@@ -484,12 +590,17 @@ pulseaudio_config_add_mpris_player (PulseaudioConfig *config,
   gchar  *player_string;
 
   players = pulseaudio_config_get_mpris_players (config);
-  if (g_strv_contains ((const char * const *) players, player)) {
+  if (g_strv_contains ((const char * const *) players, player))
+    {
+      g_strfreev(players);
       return;
-  }
+    }
 
   players_string = g_strjoinv (";", players);
-  player_string = g_strjoin (";", players_string, player, NULL);
+  if (g_strv_length (players) > 0)
+    player_string = g_strjoin (";", players_string, player, NULL);
+  else
+    player_string = g_strdup (player);
   player_list = g_strsplit(player_string, ";", 0);
 
   pulseaudio_config_set_mpris_players (config, player_list);
@@ -500,6 +611,192 @@ pulseaudio_config_add_mpris_player (PulseaudioConfig *config,
   g_strfreev (players);
 }
 
+
+
+static gchar **
+pulseaudio_config_get_blacklisted_players (PulseaudioConfig *config)
+{
+  if (!IS_PULSEAUDIO_CONFIG (config))
+    {
+      return g_strsplit (DEFAULT_BLACKLISTED_PLAYERS, ";", 1);
+    }
+
+  return g_strsplit (config->blacklisted_players, ";", 0);
+}
+
+
+
+static void
+pulseaudio_config_set_blacklisted_players (PulseaudioConfig  *config,
+                                           gchar            **players)
+{
+  GSList *player_array;
+  gchar  *player_string;
+  GValue  src = { 0, };
+  guint   index = 0;
+  guint   i = 0;
+  GSList *list = NULL;
+
+  g_return_if_fail (IS_PULSEAUDIO_CONFIG (config));
+
+  player_array = NULL;
+  for (i = 0; i < g_strv_length (players); i++)
+    {
+      player_array = g_slist_prepend (player_array, players[i]);
+    }
+
+  player_array = g_slist_sort (player_array, (GCompareFunc) compare_players);
+
+  for (list = player_array; list != NULL; list = g_slist_next (list))
+    {
+      players[index] = list->data;
+      index++;
+    }
+
+  g_slist_free (player_array);
+
+  player_string = g_strjoinv (";", players);
+
+  g_value_init(&src, G_TYPE_STRING);
+  g_value_set_static_string(&src, player_string);
+
+  pulseaudio_config_set_property (G_OBJECT (config), PROP_BLACKLISTED_PLAYERS, &src, NULL);
+
+  g_free (player_string);
+}
+
+
+
+void
+pulseaudio_config_player_blacklist_add (PulseaudioConfig *config,
+                                        const gchar      *player)
+{
+  gchar **players;
+  gchar **player_list;
+  gchar  *players_string;
+  gchar  *player_string;
+
+  players = pulseaudio_config_get_blacklisted_players (config);
+  if (g_strv_contains ((const char * const *) players, player))
+    {
+      g_strfreev(players);
+      return;
+    }
+
+  players_string = g_strjoinv (";", players);
+  if (g_strv_length (players) > 0)
+    player_string = g_strjoin (";", players_string, player, NULL);
+  else
+    player_string = g_strdup (player);
+
+  player_list = g_strsplit(player_string, ";", 0);
+
+  pulseaudio_config_set_blacklisted_players (config, player_list);
+
+  g_strfreev (player_list);
+  g_free (player_string);
+  g_free (players_string);
+  g_strfreev (players);
+}
+
+
+
+void
+pulseaudio_config_player_blacklist_remove (PulseaudioConfig *config,
+                                           const gchar      *player)
+{
+  GString  *string;
+  gchar   **players;
+  gchar   **player_list;
+  gchar    *player_string;
+  guint     i;
+
+  string = g_string_new ("");
+
+  players = pulseaudio_config_get_blacklisted_players (config);
+  if (players != NULL)
+    {
+      for (i = 0; i < g_strv_length (players); i++)
+        {
+          if (g_strcmp0(player, players[i]) != 0)
+          {
+            string = g_string_append (string, players[0]);
+          }
+        }
+    }
+
+  player_string = g_string_free (string, FALSE);
+  player_list = g_strsplit(player_string, ";", 0);
+
+  pulseaudio_config_set_blacklisted_players (config, player_list);
+
+  g_strfreev (player_list);
+  g_free (player_string);
+  g_strfreev (players);
+}
+
+
+
+gboolean
+pulseaudio_config_player_blacklist_lookup (PulseaudioConfig *config,
+                                           gchar            *player)
+{
+  gchar    **players;
+  gboolean   found = FALSE;
+  players = pulseaudio_config_get_blacklisted_players (config);
+  if (g_strv_contains ((const char * const *) players, player))
+    {
+      found = TRUE;
+    }
+
+  g_strfreev(players);
+  return found;
+}
+
+
+
+void
+pulseaudio_config_clear_known_players (PulseaudioConfig *config)
+{
+  gchar  *player_string;
+  GValue  src = { 0, };
+
+  g_return_if_fail (IS_PULSEAUDIO_CONFIG (config));
+
+  player_string = g_strdup ("");
+
+  g_value_init(&src, G_TYPE_STRING);
+  g_value_set_static_string(&src, player_string);
+
+  pulseaudio_config_set_property (G_OBJECT (config), PROP_BLACKLISTED_PLAYERS, &src, NULL);
+  pulseaudio_config_set_property (G_OBJECT (config), PROP_MPRIS_PLAYERS, &src, NULL);
+
+  g_free (player_string);
+}
+
+
+
+void
+pulseaudio_config_set_can_raise_wnck (PulseaudioConfig *config,
+                                      gboolean          can_raise)
+{
+  GValue src = { 0, };
+
+  g_return_if_fail(IS_PULSEAUDIO_CONFIG(config));
+
+  g_value_init (&src, G_TYPE_BOOLEAN);
+  g_value_set_boolean (&src, can_raise);
+
+  pulseaudio_config_set_property(G_OBJECT(config), PROP_ENABLE_WNCK, &src, NULL);
+}
+
+
+
+gboolean
+pulseaudio_config_get_can_raise_wnck (PulseaudioConfig *config)
+{
+  return config->enable_wnck;
+}
 
 
 
@@ -518,6 +815,10 @@ pulseaudio_config_new (const gchar     *property_base)
 
       property = g_strconcat (property_base, "/enable-keyboard-shortcuts", NULL);
       xfconf_g_property_bind (channel, property, G_TYPE_BOOLEAN, config, "enable-keyboard-shortcuts");
+      g_free (property);
+
+      property = g_strconcat (property_base, "/enable-multimedia-keys", NULL);
+      xfconf_g_property_bind (channel, property, G_TYPE_BOOLEAN, config, "enable-multimedia-keys");
       g_free (property);
 
       property = g_strconcat (property_base, "/show-notifications", NULL);
@@ -542,6 +843,14 @@ pulseaudio_config_new (const gchar     *property_base)
 
       property = g_strconcat (property_base, "/mpris-players", NULL);
       xfconf_g_property_bind (channel, property, G_TYPE_STRING, config, "mpris-players");
+      g_free (property);
+
+      property = g_strconcat (property_base, "/blacklisted-players", NULL);
+      xfconf_g_property_bind (channel, property, G_TYPE_STRING, config, "blacklisted-players");
+      g_free (property);
+
+      property = g_strconcat (property_base, "/enable-wnck", NULL);
+      xfconf_g_property_bind (channel, property, G_TYPE_BOOLEAN, config, "enable-wnck");
       g_free (property);
 
       g_object_notify (G_OBJECT (config), "enable-keyboard-shortcuts");
